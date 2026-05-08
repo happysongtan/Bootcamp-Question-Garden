@@ -90,7 +90,7 @@ public class QuestionRepository {
     }
 
     public List<Question> findTopLiked(String className, int limit) {
-        String weekStart = "DATEADD('DAY', -((DAYOFWEEK(CURRENT_DATE)-2+7)%7), CAST(CURRENT_DATE AS TIMESTAMP))";
+        String weekStart = "DATE_TRUNC('week', CURRENT_TIMESTAMP)";
         if (StringUtils.hasText(className)) {
             return jdbcTemplate.query(
                     "SELECT * FROM questions WHERE class_name = ? AND reported = FALSE AND created_at >= " + weekStart + " ORDER BY like_count DESC, created_at DESC LIMIT ?",
