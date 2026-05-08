@@ -7,7 +7,8 @@ INSERT INTO class_flowers (class_name, flower_type) VALUES
 ('26반', 'cosmos'),
 ('27반', 'rose'),
 ('28반', 'hydrangea'),
-('29반', 'daisy');
+('29반', 'daisy'),
+('30반', 'lily');
 
 INSERT INTO questions
 (class_name, title, content, category, nickname, password, status, like_count, view_count, tags, created_at, updated_at)

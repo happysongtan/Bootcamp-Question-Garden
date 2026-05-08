@@ -1,4 +1,4 @@
-const classNames = ["21반", "22반", "23반", "24반", "25반", "26반", "27반", "28반", "29반"];
+const classNames = ["21반", "22반", "23반", "24반", "25반", "26반", "27반", "28반", "29반", "30반"];
 
 const flowerOptions = [
     { type: "sunflower",      name: "해바라기" },

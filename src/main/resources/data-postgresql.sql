@@ -7,5 +7,6 @@ INSERT INTO class_flowers (class_name, flower_type) VALUES
 ('26반', 'cosmos'),
 ('27반', 'rose'),
 ('28반', 'hydrangea'),
-('29반', 'daisy')
+('29반', 'daisy'),
+('30반', 'lily')
 ON CONFLICT (class_name) DO NOTHING;
