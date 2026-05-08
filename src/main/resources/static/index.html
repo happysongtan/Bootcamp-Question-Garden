@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>꽃피는 질문</title>
+    <link rel="stylesheet" href="/css/styles.css?v=3">
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-brand">
+            <span class="brand-chip">🌱 꽃피는 질문</span>
+            <span class="brand-sub">Bootcamp Question Garden</span>
+        </div>
+        <button class="primary-button" type="button" data-open-create>✏ 질문 등록</button>
+    </header>
+
+    <div class="page">
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <p class="sidebar-label">반 선택</p>
+                <select id="classSelect" class="sidebar-select"></select>
+                <div id="classRankList" class="class-rank-list"></div>
+            </div>
+
+            <button class="report-box-btn" type="button" data-open-report-box>🚨 신고함</button>
+
+            <div class="sidebar-section flower-section">
+                <div id="flowerVisual" class="flower-visual">
+                    <img id="flowerImage" class="flower-image" src="/images/flowers/sunflower-seed.png" alt="꽃">
+                </div>
+                <div class="flower-info">
+                    <div class="flower-eyebrow-row">
+                        <p class="eyebrow">🌿 우리 반 꽃</p>
+                        <button class="flower-settings-btn" type="button" data-open-flower-settings>꽃 설정</button>
+                    </div>
+                    <h2 id="gardenTitle">21반의 해바라기</h2>
+                    <p id="growthMessage" class="growth-msg">질문과 답변을 모으는 중입니다.</p>
+                    <div class="growth-bar"><span id="growthBar"></span></div>
+                    <p id="growthScoreLabel" class="growth-score-label">0점 · 다음 단계까지 10점</p>
+                </div>
+
+                <div class="weekly-activity">
+                    <p class="weekly-label">이번 주 활동</p>
+                    <div class="activity-grid">
+                        <div class="activity-item">
+                            <strong id="actQuestions" class="activity-val">0</strong>
+                            <span class="activity-name">총 질문</span>
+                        </div>
+                        <div class="activity-item">
+                            <strong id="actAnswers" class="activity-val">0</strong>
+                            <span class="activity-name">총 답변</span>
+                        </div>
+                        <div class="activity-item">
+                            <strong id="actLikes" class="activity-val">0</strong>
+                            <span class="activity-name">전체 공감</span>
+                        </div>
+                        <div class="activity-item">
+                            <strong id="actSolved" class="activity-val">0</strong>
+                            <span class="activity-name">해결된 질문</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Main content ── -->
+        <main class="main-content">
+            <section class="popular-section">
+                <div class="section-heading">
+                    <h2>인기 질문 TOP 3</h2>
+                    <span id="popularClassLabel">선택한 반 기준</span>
+                </div>
+                <div id="popularList" class="popular-list"></div>
+            </section>
+
+            <section class="question-section">
+                <div class="question-section-header">
+                    <h2>전체 글 <span id="questionCount">0</span>개</h2>
+                    <div class="controls">
+                        <div class="search-wrap">
+                            <span class="search-icon">🔍</span>
+                            <input id="keywordInput" type="search" placeholder="검색어를 입력하세요">
+                        </div>
+                        <select id="categorySelect" aria-label="카테고리">
+                            <option value="">전체</option>
+                            <option>Java</option>
+                            <option>Spring</option>
+                            <option>DB</option>
+                            <option>MySQL</option>
+                            <option>Git</option>
+                            <option>Algorithm</option>
+                            <option>HTML/CSS</option>
+                            <option>JavaScript</option>
+                            <option>Project</option>
+                            <option>기타</option>
+                        </select>
+                        <select id="sortSelect" aria-label="정렬">
+                            <option value="latest">최신글</option>
+                            <option value="likes">공감순</option>
+                            <option value="answers">답변 많은순</option>
+                            <option value="waiting">답변 대기순</option>
+                            <option value="solved">해결 완료순</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="questionList" class="question-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ── Create dialog ── -->
+    <dialog id="questionDialog" class="dialog">
+        <form id="questionForm" class="form">
+            <div class="dialog-header">
+                <h2>질문 등록</h2>
+                <button type="button" class="ghost-button" data-close-create>닫기</button>
+            </div>
+            <label>
+                반
+                <select name="className" required></select>
+            </label>
+            <label>
+                제목
+                <input name="title" required minlength="2" maxlength="100">
+            </label>
+            <label>
+                카테고리
+                <select name="category" required>
+                    <option value="">선택</option>
+                    <option>Java</option>
+                    <option>Spring</option>
+                    <option>DB</option>
+                    <option>MySQL</option>
+                    <option>Git</option>
+                    <option>Algorithm</option>
+                    <option>HTML/CSS</option>
+                    <option>JavaScript</option>
+                    <option>Project</option>
+                    <option>기타</option>
+                </select>
+            </label>
+            <label>
+                질문 내용
+                <textarea name="content" required minlength="5" maxlength="2000"></textarea>
+            </label>
+            <div class="form-grid">
+                <label>
+                    닉네임
+                    <input name="nickname" placeholder="익명">
+                </label>
+                <label>
+                    비밀번호
+                    <input name="password" type="password" required minlength="4">
+                </label>
+            </div>
+            <button class="primary-button" type="submit">등록하기</button>
+        </form>
+    </dialog>
+
+    <!-- ── Detail dialog ── -->
+    <dialog id="detailDialog" class="dialog detail-dialog">
+        <div id="questionDetail"></div>
+    </dialog>
+
+    <!-- 신고함 비밀번호 다이얼로그 -->
+    <dialog id="reportPasswordDialog" class="dialog">
+        <form id="reportPasswordForm" class="form">
+            <div class="dialog-header">
+                <h2>🚨 신고함</h2>
+                <button type="button" class="ghost-button" data-close-report-pw>닫기</button>
+            </div>
+            <label>
+                관리자 비밀번호
+                <input name="password" type="password" required minlength="4" placeholder="관리자 비밀번호 입력">
+            </label>
+            <button class="primary-button" type="submit">입장</button>
+        </form>
+    </dialog>
+
+    <!-- 신고함 목록 다이얼로그 -->
+    <dialog id="reportBoxDialog" class="dialog detail-dialog">
+        <div class="form">
+            <div class="dialog-header">
+                <h2>🚨 신고된 글</h2>
+                <button class="ghost-button" type="button" data-close-report-box>닫기</button>
+            </div>
+            <div id="reportBoxList"></div>
+        </div>
+    </dialog>
+
+    <!-- 꽃 설정 다이얼로그 -->
+    <dialog id="flowerSettingsDialog" class="dialog">
+        <div class="form">
+            <div class="dialog-header">
+                <h2>🌸 꽃 설정</h2>
+                <button class="ghost-button" type="button" data-close-flower-settings>닫기</button>
+            </div>
+            <div id="flowerSettingsList"></div>
+        </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="/js/app.js?v=2"></script>
+</body>
+</html>
