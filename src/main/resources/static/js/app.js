@@ -40,6 +40,7 @@ const stageThresholds = {
 };
 
 const state = { questions: [], activeQuestionId: null };
+const pendingElements = new WeakSet();
 let classRankings = {};
 
 /* ── DOM refs ── */
@@ -84,36 +85,40 @@ if (flowerSettingsDialog) closeOnBackdrop(flowerSettingsDialog);
 
 document.querySelector("[data-open-report-box]").addEventListener("click", () => {
     reportPasswordForm.reset();
-    reportPasswordDialog.showModal();
+    showDialog(reportPasswordDialog);
 });
 document.querySelector("[data-close-report-pw]").addEventListener("click", () => reportPasswordDialog.close());
 document.querySelector("[data-close-report-box]").addEventListener("click", () => reportBoxDialog.close());
 
 reportPasswordForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const password = reportPasswordForm.elements.password.value;
-    try {
-        const questions = await request(`/api/reports?password=${encodeURIComponent(password)}`);
-        reportPasswordDialog.close();
-        renderReportBox(questions, password);
-        reportBoxDialog.showModal();
-    } catch {
-        /* 오류 토스트는 request()가 이미 표시 */
-    }
+    await withElementLock(e.currentTarget, async () => {
+        const password = reportPasswordForm.elements.password.value;
+        try {
+            const questions = await request(`/api/reports?password=${encodeURIComponent(password)}`);
+            reportPasswordDialog.close();
+            renderReportBox(questions, password);
+            showDialog(reportBoxDialog);
+        } catch {
+            /* 오류 토스트는 request()가 이미 표시 */
+        }
+    });
 });
 
-document.querySelector("[data-open-flower-settings]").addEventListener("click", async () => {
-    try {
-        await openFlowerSettings();
-    } catch {
-        /* request()가 이미 토스트를 표시 */
-    }
+document.querySelector("[data-open-flower-settings]").addEventListener("click", async (event) => {
+    await withElementLock(event.currentTarget, async () => {
+        try {
+            await openFlowerSettings();
+        } catch {
+            /* request()가 이미 토스트를 표시 */
+        }
+    });
 });
 document.querySelector("[data-close-flower-settings]").addEventListener("click", () => flowerSettingsDialog.close());
 
 document.querySelector("[data-open-create]").addEventListener("click", () => {
     questionForm.elements.className.value = classSelect.value;
-    questionDialog.showModal();
+    showDialog(questionDialog);
 });
 document.querySelector("[data-close-create]").addEventListener("click", () => questionDialog.close());
 classSelect.addEventListener("change", refresh);
@@ -123,26 +128,28 @@ sortSelect.addEventListener("change", loadQuestions);
 
 questionForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const fd = new FormData(questionForm);
-    const selected = fd.get("className");
-    await request("/api/questions", {
-        method: "POST",
-        body: JSON.stringify({
-            className: selected,
-            title:     fd.get("title").trim(),
-            content:   fd.get("content").trim(),
-            category:  fd.get("category"),
-            nickname:  fd.get("nickname").trim(),
-            password:  fd.get("password"),
-            tags:      [],
-        }),
+    await withElementLock(event.currentTarget, async () => {
+        const fd = new FormData(questionForm);
+        const selected = fd.get("className");
+        await request("/api/questions", {
+            method: "POST",
+            body: JSON.stringify({
+                className: selected,
+                title:     fd.get("title").trim(),
+                content:   fd.get("content").trim(),
+                category:  fd.get("category"),
+                nickname:  fd.get("nickname").trim(),
+                password:  fd.get("password"),
+                tags:      [],
+            }),
+        });
+        questionForm.reset();
+        classSelect.value = selected;
+        questionForm.elements.className.value = selected;
+        questionDialog.close();
+        showToast("질문이 등록되었습니다.");
+        await refresh();
     });
-    questionForm.reset();
-    classSelect.value = selected;
-    questionForm.elements.className.value = selected;
-    questionDialog.close();
-    showToast("질문이 등록되었습니다.");
-    await refresh();
 });
 
 /* ── Data loading ── */
@@ -359,13 +366,15 @@ async function openDetail(questionId) {
     `;
 
     questionDetail.querySelector("[data-close-detail]").addEventListener("click", () => detailDialog.close());
-    questionDetail.querySelector("[data-detail-like]").addEventListener("click", () => toggleLike(q.id, true));
+    const likeButton = questionDetail.querySelector("[data-detail-like]");
+    likeButton.addEventListener("click", () => withElementLock(likeButton, () => toggleLike(q.id, true)));
     questionDetail.querySelector("[data-answer-form]").addEventListener("submit", submitAnswer);
     questionDetail.querySelector("[data-solve-form]").addEventListener("submit", solveQuestion);
     questionDetail.querySelector("[data-delete-form]").addEventListener("submit", deleteQuestion);
-    questionDetail.querySelector("[data-report-btn]").addEventListener("click", () => {
+    const reportButton = questionDetail.querySelector("[data-report-btn]");
+    reportButton.addEventListener("click", () => {
         if (confirm("이 글을 신고하시겠습니까? 신고된 글은 관리자 검토 전까지 숨겨집니다.")) {
-            reportQuestion(q.id);
+            withElementLock(reportButton, () => reportQuestion(q.id));
         }
     });
 
@@ -387,18 +396,22 @@ async function openDetail(questionId) {
     bindToggle("[data-unadopt-toggle]", "data-unadopt-form", "[data-unadopt-cancel]");
 
     questionDetail.querySelectorAll("[data-adopt-form]").forEach((form) => {
-        form.addEventListener("submit", (e) => {
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            adoptAnswer(q.id, form.dataset.adoptForm, form.querySelector("input[name='password']").value);
+            await withElementLock(form, () =>
+                adoptAnswer(q.id, form.dataset.adoptForm, form.querySelector("input[name='password']").value)
+            );
         });
     });
     questionDetail.querySelectorAll("[data-unadopt-form]").forEach((form) => {
-        form.addEventListener("submit", (e) => {
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            unadoptAnswer(q.id, form.dataset.unadoptForm, form.querySelector("input[name='password']").value);
+            await withElementLock(form, () =>
+                unadoptAnswer(q.id, form.dataset.unadoptForm, form.querySelector("input[name='password']").value)
+            );
         });
     });
-    if (!detailDialog.open) detailDialog.showModal();
+    showDialog(detailDialog);
 }
 
 function renderAnswer(answer, questionStatus, questionId) {
@@ -436,14 +449,16 @@ function renderAnswer(answer, questionStatus, questionId) {
 
 async function deleteQuestion(event) {
     event.preventDefault();
-    const fd = new FormData(event.currentTarget);
-    await request(`/api/questions/${state.activeQuestionId}`, {
-        method: "DELETE",
-        body: JSON.stringify({ password: fd.get("password") }),
+    await withElementLock(event.currentTarget, async () => {
+        const fd = new FormData(event.currentTarget);
+        await request(`/api/questions/${state.activeQuestionId}`, {
+            method: "DELETE",
+            body: JSON.stringify({ password: fd.get("password") }),
+        });
+        showToast("질문이 삭제되었습니다.");
+        detailDialog.close();
+        await refresh();
     });
-    showToast("질문이 삭제되었습니다.");
-    detailDialog.close();
-    await refresh();
 }
 
 async function adoptAnswer(questionId, answerId, password) {
@@ -491,14 +506,16 @@ function renderReportBox(questions, adminPassword) {
 
     reportBoxList.querySelectorAll(".restore-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
-            await request(`/api/reports/${btn.dataset.restoreId}/restore`, {
-                method: "PATCH",
-                body: JSON.stringify({ password: btn.dataset.adminPw }),
+            await withElementLock(btn, async () => {
+                await request(`/api/reports/${btn.dataset.restoreId}/restore`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ password: btn.dataset.adminPw }),
+                });
+                showToast("글이 복구되었습니다.");
+                const updated = await request(`/api/reports?password=${encodeURIComponent(btn.dataset.adminPw)}`);
+                renderReportBox(updated, btn.dataset.adminPw);
+                await refresh();
             });
-            showToast("글이 복구되었습니다.");
-            const updated = await request(`/api/reports?password=${encodeURIComponent(btn.dataset.adminPw)}`);
-            renderReportBox(updated, btn.dataset.adminPw);
-            await refresh();
         });
     });
 }
@@ -513,7 +530,7 @@ async function openFlowerSettings() {
     const currentType = flowerMap[cn] || "sunflower";
     flowerSettingsDialog.querySelector("h2").textContent = `🌸 ${cn} 꽃 변경`;
     renderFlowerSettings(cn, currentType);
-    if (!flowerSettingsDialog.open) flowerSettingsDialog.showModal();
+    showDialog(flowerSettingsDialog);
 }
 
 function renderFlowerSettings(cn, currentType) {
@@ -531,19 +548,21 @@ function renderFlowerSettings(cn, currentType) {
         </div>
     `;
 
-    flowerSettingsList.querySelector(".flower-confirm-btn").addEventListener("click", async () => {
-        const flowerType = flowerSettingsList.querySelector("#flowerTypeSelect").value;
-        try {
-            await request(`/api/class-flowers/${encodeURIComponent(cn)}`, {
-                method: "PATCH",
-                body: JSON.stringify({ flowerType }),
-            });
-            showToast(`${cn} 꽃이 변경되었습니다.`);
-            flowerSettingsDialog.close();
-            await loadFlowerGrowth();
-        } catch {
-            /* request()가 이미 토스트를 표시 */
-        }
+    flowerSettingsList.querySelector(".flower-confirm-btn").addEventListener("click", async (event) => {
+        await withElementLock(event.currentTarget, async () => {
+            const flowerType = flowerSettingsList.querySelector("#flowerTypeSelect").value;
+            try {
+                await request(`/api/class-flowers/${encodeURIComponent(cn)}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ flowerType }),
+                });
+                showToast(`${cn} 꽃이 변경되었습니다.`);
+                flowerSettingsDialog.close();
+                await loadFlowerGrowth();
+            } catch {
+                /* request()가 이미 토스트를 표시 */
+            }
+        });
     });
 }
 
@@ -564,30 +583,34 @@ async function toggleLike(questionId, reopenDetail = false) {
 
 async function submitAnswer(event) {
     event.preventDefault();
-    const fd = new FormData(event.currentTarget);
-    await request(`/api/questions/${state.activeQuestionId}/answers`, {
-        method: "POST",
-        body: JSON.stringify({
-            content:  fd.get("content").trim(),
-            nickname: fd.get("nickname").trim(),
-            password: fd.get("password"),
-        }),
+    await withElementLock(event.currentTarget, async () => {
+        const fd = new FormData(event.currentTarget);
+        await request(`/api/questions/${state.activeQuestionId}/answers`, {
+            method: "POST",
+            body: JSON.stringify({
+                content:  fd.get("content").trim(),
+                nickname: fd.get("nickname").trim(),
+                password: fd.get("password"),
+            }),
+        });
+        showToast("답변이 등록되었습니다.");
+        await refresh();
+        await openDetail(state.activeQuestionId);
     });
-    showToast("답변이 등록되었습니다.");
-    await refresh();
-    await openDetail(state.activeQuestionId);
 }
 
 async function solveQuestion(event) {
     event.preventDefault();
-    const fd = new FormData(event.currentTarget);
-    await request(`/api/questions/${state.activeQuestionId}/solve`, {
-        method: "PATCH",
-        body: JSON.stringify({ password: fd.get("password") }),
+    await withElementLock(event.currentTarget, async () => {
+        const fd = new FormData(event.currentTarget);
+        await request(`/api/questions/${state.activeQuestionId}/solve`, {
+            method: "PATCH",
+            body: JSON.stringify({ password: fd.get("password") }),
+        });
+        showToast("해결 완료로 변경되었습니다.");
+        await refresh();
+        await openDetail(state.activeQuestionId);
     });
-    showToast("해결 완료로 변경되었습니다.");
-    await refresh();
-    await openDetail(state.activeQuestionId);
 }
 
 /* ── HTTP ── */
@@ -607,17 +630,23 @@ async function request(url, options = {}) {
 
 /* ── Helpers ── */
 function bindOpenDetailInteraction(el) {
-    el.addEventListener("click", () => openDetail(el.dataset.detailId));
+    el.addEventListener("click", () => withElementLock(el, () => openDetail(el.dataset.detailId)));
     el.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            openDetail(el.dataset.detailId);
+            withElementLock(el, () => openDetail(el.dataset.detailId));
         }
     });
 }
 
 function closeOnBackdrop(dialog) {
     dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+}
+
+function showDialog(dialog) {
+    if (dialog && !dialog.open) {
+        dialog.showModal();
+    }
 }
 
 function initializeClassOptions() {
@@ -671,6 +700,51 @@ function formatRelativeDate(value) {
 function debounce(fn, delay) {
     let timer;
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+}
+
+async function withElementLock(element, task) {
+    if (!element || pendingElements.has(element)) {
+        return;
+    }
+
+    pendingElements.add(element);
+    const controls = getLockControls(element);
+    const previousStates = controls.map((control) => ({
+        control,
+        disabled: control.disabled,
+        ariaDisabled: control.getAttribute("aria-disabled"),
+    }));
+
+    element.setAttribute("aria-busy", "true");
+    controls.forEach((control) => {
+        control.disabled = true;
+        control.setAttribute("aria-disabled", "true");
+    });
+
+    try {
+        return await task();
+    } finally {
+        previousStates.forEach(({ control, disabled, ariaDisabled }) => {
+            control.disabled = disabled;
+            if (ariaDisabled === null) {
+                control.removeAttribute("aria-disabled");
+            } else {
+                control.setAttribute("aria-disabled", ariaDisabled);
+            }
+        });
+        element.removeAttribute("aria-busy");
+        pendingElements.delete(element);
+    }
+}
+
+function getLockControls(element) {
+    if (element instanceof HTMLFormElement) {
+        return [...element.querySelectorAll("button")];
+    }
+    if (element instanceof HTMLButtonElement || element instanceof HTMLInputElement) {
+        return [element];
+    }
+    return [];
 }
 
 function escapeHtml(value) {
